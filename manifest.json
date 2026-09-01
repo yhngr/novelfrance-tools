@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "NovelFrance Tools",
+  "version": "2.3.3",
+  "description": "Outils pour novelfrance.fr : contrôle volume TTS, auto-scroll, profils et raccourcis.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "NovelFrance Tools",
+    "default_popup": "ui/popup/popup.html"
+  },
+  "options_ui": {
+    "page": "ui/options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": ["storage", "scripting", "tabs", "notifications"],
+  "host_permissions": ["*://novelfrance.fr/*", "*://*.novelfrance.fr/*"],
+  "optional_host_permissions": ["*://*/*"]
+}

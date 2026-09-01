@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NovelFrance Tools</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="header">
+        <div class="header-brand">
+          <span class="header-dot" aria-hidden="true"></span>
+          <div>
+            <h1>NovelFrance Tools</h1>
+            <p id="context-label" class="header-context">novelfrance.fr</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="card" aria-labelledby="scroll-title">
+        <div class="card-head">
+          <h2 id="scroll-title">Auto-scroll</h2>
+          <span id="scroll-status" class="badge">Inactif</span>
+        </div>
+
+        <button id="scroll-toggle" type="button" class="btn btn-primary">
+          Activer le défilement
+        </button>
+
+        <label class="field">
+          <div class="field-top">
+            <span>Vitesse</span>
+            <output id="scroll-speed-value" for="scroll-speed">45 px/s</output>
+          </div>
+          <input id="scroll-speed" class="range range-scroll" type="range" min="10" max="160" step="5" />
+        </label>
+      </section>
+
+      <section class="card" aria-labelledby="volume-title">
+        <div class="card-head">
+          <h2 id="volume-title">Volume TTS</h2>
+          <output id="volume-value" class="badge badge-accent" for="volume-slider">100%</output>
+        </div>
+
+        <div class="volume-row">
+          <button id="mute-btn" type="button" class="icon-btn" aria-label="Couper le son">
+            <svg id="mute-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/>
+            </svg>
+          </button>
+          <input id="volume-slider" class="range range-volume" type="range" min="0" max="100" step="5" />
+        </div>
+
+        <div class="chip-group">
+          <span class="chip-label">Presets</span>
+          <div id="presets" class="chips"></div>
+        </div>
+
+        <div class="chip-group">
+          <span class="chip-label">Profils</span>
+          <div id="profiles" class="chips chips-profiles"></div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <a href="#" id="options-link" class="footer-link">Options</a>
+        <div id="shortcut-hint" class="shortcuts"></div>
+      </footer>
+    </main>
+    <script src="../../shared/storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

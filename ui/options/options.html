@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Options — NovelFrance Tools</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="options">
+      <header class="options-header">
+        <div class="brand">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <div>
+            <h1>NovelFrance Tools</h1>
+            <p class="subtitle">Réglages de l'extension pour novelfrance.fr</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Défilement automatique</h2>
+          <span class="card-tag">Scroll</span>
+        </div>
+        <p class="card-desc">Défile le chapitre automatiquement pendant la lecture ou en continu.</p>
+
+        <label class="toggle">
+          <input id="autoScrollEnabled" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Activer au chargement de la page</span>
+        </label>
+        <label class="toggle">
+          <input id="autoScrollOnlyPlaying" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Lier au TTS (défiler pendant la lecture audio)</span>
+        </label>
+        <label class="toggle">
+          <input id="autoScrollPauseManual" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Pause temporaire si scroll manuel</span>
+        </label>
+        <label class="toggle">
+          <input id="autoScrollShowPanel" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Afficher le panneau flottant</span>
+        </label>
+
+        <label class="field">
+          <div class="field-top">
+            <span>Vitesse de défilement</span>
+            <output id="autoScrollSpeedValue" for="autoScrollSpeed">45 px/s</output>
+          </div>
+          <input id="autoScrollSpeed" class="range" type="range" min="10" max="160" step="5" />
+        </label>
+
+        <label class="field field-inline">
+          <span>Raccourci clavier</span>
+          <input id="shortcutAutoScroll" class="input-short" type="text" maxlength="20" placeholder="s" />
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Volume TTS</h2>
+          <span class="card-tag">Audio</span>
+        </div>
+
+        <div class="field-grid">
+          <label class="field field-inline">
+            <span>Volume par défaut</span>
+            <div class="input-unit">
+              <input id="defaultVolume" type="number" min="0" max="100" />
+              <span>%</span>
+            </div>
+          </label>
+          <label class="field field-inline">
+            <span>Pas du curseur</span>
+            <div class="input-unit">
+              <input id="sliderStep" type="number" min="1" max="20" />
+              <span>%</span>
+            </div>
+          </label>
+        </div>
+
+        <label class="toggle">
+          <input id="boostEnabled" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Autoriser le boost au-delà de 100 %</span>
+        </label>
+        <label class="field field-inline">
+          <span>Volume maximum</span>
+          <div class="input-unit">
+            <input id="maxBoost" type="number" min="100" max="300" />
+            <span>%</span>
+          </div>
+        </label>
+        <label class="toggle">
+          <input id="limiterEnabled" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Limiter audio (anti-distorsion)</span>
+        </label>
+        <label class="toggle">
+          <input id="narratorNormalization" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Normalisation entre narrateurs</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Confort audio</h2>
+          <span class="card-tag">Confort</span>
+        </div>
+
+        <label class="toggle">
+          <input id="fadeEnabled" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Fade in/out sur les changements de volume</span>
+        </label>
+        <label class="field field-inline">
+          <span>Durée du fade</span>
+          <div class="input-unit">
+            <input id="fadeDurationMs" type="number" min="0" max="2000" step="50" />
+            <span>ms</span>
+          </div>
+        </label>
+        <label class="toggle">
+          <input id="chapterEndNotification" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Notification à la fin du chapitre</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Interface & raccourcis</h2>
+          <span class="card-tag">UI</span>
+        </div>
+
+        <label class="toggle">
+          <input id="keyboardShortcuts" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Raccourcis clavier activés</span>
+        </label>
+        <p class="hint">Les touches média (volume/mute) sont aussi prises en charge.</p>
+
+        <div class="shortcut-grid">
+          <label class="field field-inline">
+            <span>Mute</span>
+            <input id="shortcutMute" class="input-short" type="text" maxlength="20" />
+          </label>
+          <label class="field field-inline">
+            <span>Volume +</span>
+            <input id="shortcutUp" class="input-short" type="text" maxlength="20" />
+          </label>
+          <label class="field field-inline">
+            <span>Volume −</span>
+            <input id="shortcutDown" class="input-short" type="text" maxlength="20" />
+          </label>
+        </div>
+
+        <label class="toggle">
+          <input id="floatingControl" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Contrôle volume flottant déplaçable</span>
+        </label>
+        <label class="toggle">
+          <input id="compactPresets" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Masquer préréglages (bouton ▾ pour les afficher)</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Égaliseur</h2>
+          <span class="card-tag">EQ</span>
+        </div>
+
+        <label class="field">
+          <div class="field-top">
+            <span>Graves</span>
+            <output id="eqBassValue" for="eqBass">0 dB</output>
+          </div>
+          <input id="eqBass" class="range" type="range" min="-12" max="12" step="1" />
+        </label>
+        <label class="field">
+          <div class="field-top">
+            <span>Médiums</span>
+            <output id="eqMidValue" for="eqMid">0 dB</output>
+          </div>
+          <input id="eqMid" class="range" type="range" min="-12" max="12" step="1" />
+        </label>
+        <label class="field">
+          <div class="field-top">
+            <span>Aigus</span>
+            <output id="eqTrebleValue" for="eqTreble">0 dB</output>
+          </div>
+          <input id="eqTreble" class="range" type="range" min="-12" max="12" step="1" />
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Sites compatibles</h2>
+          <span class="card-tag">Sites</span>
+        </div>
+        <p class="hint">Un motif par ligne, format Chrome (ex: *://novelfrance.fr/*)</p>
+        <textarea id="sites" rows="4" spellcheck="false"></textarea>
+      </section>
+
+      <footer class="options-footer">
+        <button id="save-btn" type="button">Enregistrer les réglages</button>
+        <span id="status" role="status" aria-live="polite"></span>
+      </footer>
+    </main>
+    <script src="../../shared/storage.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
