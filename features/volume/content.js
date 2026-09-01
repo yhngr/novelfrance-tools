@@ -732,6 +732,12 @@
   }
 
   async function start() {
+    NFStorage.onContextInvalidated(() => {
+      if (state.keepAliveTimer) {
+        window.clearInterval(state.keepAliveTimer);
+        state.keepAliveTimer = null;
+      }
+    });
     await bootstrap(false);
     initKeyboardShortcuts();
     initScrollWatcher();
@@ -761,14 +767,14 @@
       const localDataChanged =
         area === "local" && (changes.nf_volumes || changes.nf_narrator_levels);
       if (settingsChanged || localDataChanged) {
-        bootstrap(true);
+        bootstrap(true).catch(() => {});
       }
     });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", () => start().catch(() => {}));
   } else {
-    start();
+    start().catch(() => {});
   }
 })();

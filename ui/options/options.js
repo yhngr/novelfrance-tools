@@ -7,6 +7,7 @@ const fields = {
   autoScrollShowPanel: document.getElementById("autoScrollShowPanel"),
   shortcutAutoScroll: document.getElementById("shortcutAutoScroll"),
   readerShowProgress: document.getElementById("readerShowProgress"),
+  readerShowPanel: document.getElementById("readerShowPanel"),
   autoNextChapter: document.getElementById("autoNextChapter"),
   shortcutSeekBackward: document.getElementById("shortcutSeekBackward"),
   shortcutSeekForward: document.getElementById("shortcutSeekForward"),
@@ -78,6 +79,7 @@ async function loadOptions() {
   fields.autoScrollShowPanel.checked = scroll.showFloatingControl;
   fields.shortcutAutoScroll.value = settings.shortcuts.toggleAutoScroll;
   fields.readerShowProgress.checked = settings.reader.showProgressBar;
+  fields.readerShowPanel.checked = settings.reader.showFloatingPanel;
   fields.autoNextChapter.checked = settings.reader.autoNextChapter;
   fields.shortcutSeekBackward.value = settings.shortcuts.seekBackward;
   fields.shortcutSeekForward.value = settings.shortcuts.seekForward;
@@ -150,10 +152,12 @@ async function saveOptions() {
     },
     reader: {
       showProgressBar: fields.readerShowProgress.checked,
+      showFloatingPanel: fields.readerShowPanel.checked,
       autoNextChapter: fields.autoNextChapter.checked,
     },
     floatingPosition: current.floatingPosition,
     autoScrollPosition: current.autoScrollPosition,
+    readerPanelPosition: current.readerPanelPosition,
   };
 
   await NFStorage.saveSettings(settings);

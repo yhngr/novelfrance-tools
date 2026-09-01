@@ -484,6 +484,7 @@
   }
 
   async function start() {
+    NFStorage.onContextInvalidated(() => stopScroll(false));
     await bootstrap();
     initManualScrollPause();
     initKeyboard();
@@ -498,14 +499,14 @@
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "sync" && changes.nf_settings) {
-        bootstrap();
+        bootstrap().catch(() => {});
       }
     });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", () => start().catch(() => {}));
   } else {
-    start();
+    start().catch(() => {});
   }
 })();

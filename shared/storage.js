@@ -37,6 +37,7 @@ const NFStorage = (() => {
 
   const DEFAULT_READER = {
     showProgressBar: true,
+    showFloatingPanel: true,
     autoNextChapter: false,
   };
 
@@ -69,6 +70,7 @@ const NFStorage = (() => {
     reader: { ...DEFAULT_READER },
     floatingPosition: null,
     autoScrollPosition: null,
+    readerPanelPosition: null,
   };
 
   const DEFAULT_VOLUMES = {
@@ -169,10 +171,12 @@ const NFStorage = (() => {
       },
       reader: {
         showProgressBar: booleanValue(reader.showProgressBar, DEFAULT_READER.showProgressBar),
+        showFloatingPanel: booleanValue(reader.showFloatingPanel, DEFAULT_READER.showFloatingPanel),
         autoNextChapter: booleanValue(reader.autoNextChapter, DEFAULT_READER.autoNextChapter),
       },
       floatingPosition: positionValue(source.floatingPosition),
       autoScrollPosition: positionValue(source.autoScrollPosition),
+      readerPanelPosition: positionValue(source.readerPanelPosition),
     };
   }
 
@@ -253,27 +257,121 @@ const NFStorage = (() => {
     return { progressByChapter, playbackRateByNovel };
   }
 
-  function getArea(area, keys) {
-    return new Promise((resolve) => {
-      chrome.storage[area].get(keys, resolve);
+  let contextInvalidated = false;
+  const invalidationCallbacks = new Set();
+
+  function isContextInvalidatedError(error) {
+    const message = error?.message || String(error || "");
+    return /extension context invalidated|context invalidated/i.test(message);
+  }
+
+  function notifyContextInvalidated() {
+    invalidationCallbacks.forEach((callback) => {
+      try {
+        callback();
+      } catch (_error) {
+        /* ignore teardown errors */
+      }
     });
+    invalidationCallbacks.clear();
+  }
+
+  function markContextInvalidated() {
+    if (contextInvalidated) {
+      return;
+    }
+    contextInvalidated = true;
+    notifyContextInvalidated();
+  }
+
+  function isContextValid() {
+    if (contextInvalidated) {
+      return false;
+    }
+    try {
+      return Boolean(chrome.runtime?.id);
+    } catch (_error) {
+      markContextInvalidated();
+      return false;
+    }
+  }
+
+  function onContextInvalidated(callback) {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    if (contextInvalidated) {
+      callback();
+      return () => {};
+    }
+    invalidationCallbacks.add(callback);
+    return () => invalidationCallbacks.delete(callback);
+  }
+
+  function storageCallback(resolve, reject, fallback) {
+    return (result) => {
+      if (!isContextValid()) {
+        markContextInvalidated();
+        resolve(fallback);
+        return;
+      }
+      const runtimeError = chrome.runtime.lastError;
+      if (runtimeError) {
+        if (isContextInvalidatedError(runtimeError)) {
+          markContextInvalidated();
+          resolve(fallback);
+          return;
+        }
+        reject(new Error(runtimeError.message));
+        return;
+      }
+      resolve(result ?? fallback);
+    };
+  }
+
+  function runStorageCall(area, method, payload, fallback) {
+    if (!isContextValid()) {
+      return Promise.resolve(fallback);
+    }
+    return new Promise((resolve, reject) => {
+      try {
+        const callback = storageCallback(resolve, reject, fallback);
+        if (method === "get") {
+          chrome.storage[area].get(payload, callback);
+        } else if (method === "set") {
+          chrome.storage[area].set(payload, callback);
+        } else {
+          chrome.storage[area].remove(payload, callback);
+        }
+      } catch (error) {
+        if (isContextInvalidatedError(error)) {
+          markContextInvalidated();
+          resolve(fallback);
+        } else {
+          reject(error);
+        }
+      }
+    });
+  }
+
+  function getArea(area, keys) {
+    return runStorageCall(area, "get", keys, {});
   }
 
   function setArea(area, data) {
-    return new Promise((resolve) => {
-      chrome.storage[area].set(data, resolve);
-    });
+    return runStorageCall(area, "set", data, undefined);
   }
 
   function removeArea(area, keys) {
-    return new Promise((resolve) => {
-      chrome.storage[area].remove(keys, resolve);
-    });
+    return runStorageCall(area, "remove", keys, undefined);
   }
 
   let migrationPromise = null;
 
   function ensureLocalDataMigrated() {
+    if (!isContextValid()) {
+      return Promise.resolve();
+    }
     if (migrationPromise) {
       return migrationPromise;
     }
@@ -284,6 +382,9 @@ const NFStorage = (() => {
         getArea("sync", keys),
         getArea("local", [KEYS.volumes, KEYS.narratorLevels]),
       ]);
+      if (!isContextValid()) {
+        return;
+      }
       const localWrites = {};
 
       if (!localData[KEYS.volumes]) {
@@ -311,7 +412,14 @@ const NFStorage = (() => {
       if (syncKeysToRemove.length) {
         await removeArea("sync", syncKeysToRemove);
       }
-    })();
+    })().catch((error) => {
+      if (isContextInvalidatedError(error)) {
+        markContextInvalidated();
+        return;
+      }
+      migrationPromise = null;
+      throw error;
+    });
 
     return migrationPromise;
   }
@@ -330,6 +438,9 @@ const NFStorage = (() => {
   }
 
   async function saveSettings(settings) {
+    if (!isContextValid()) {
+      return;
+    }
     await setArea("sync", { [KEYS.settings]: mergeSettings(settings) });
   }
 
@@ -340,6 +451,9 @@ const NFStorage = (() => {
   }
 
   async function saveVolumes(volumes) {
+    if (!isContextValid()) {
+      return;
+    }
     await ensureLocalDataMigrated();
     await setArea("local", { [KEYS.volumes]: mergeVolumes(volumes) });
   }
@@ -371,6 +485,9 @@ const NFStorage = (() => {
   }
 
   async function saveReadingProgress(chapterKey, progress) {
+    if (!isContextValid()) {
+      return;
+    }
     if (typeof chapterKey !== "string" || !/^\/novel\/[^/]+\/chapter-[^/?#]+/.test(chapterKey)) {
       return;
     }
@@ -394,6 +511,9 @@ const NFStorage = (() => {
   }
 
   async function savePlaybackRate(novelSlug, rate) {
+    if (!isContextValid()) {
+      return clampNumber(rate, 1, 0.75, 2);
+    }
     if (typeof novelSlug !== "string" || !/^[a-z0-9-]{1,200}$/i.test(novelSlug)) {
       return 1;
     }
@@ -526,5 +646,7 @@ const NFStorage = (() => {
     extractNovelSlug,
     detectNarrator,
     isTtsPlaying,
+    isContextValid,
+    onContextInvalidated,
   };
 })();

@@ -2,7 +2,7 @@
 
 Extension Chromium pour [novelfrance.fr](https://novelfrance.fr) — contrôle du volume TTS, défilement automatique du chapitre et raccourcis clavier.
 
-> **Version actuelle : 2.4.0**
+> **Version actuelle : 2.4.4**
 
 ## Fonctionnalités
 
@@ -28,7 +28,8 @@ Extension Chromium pour [novelfrance.fr](https://novelfrance.fr) — contrôle d
 - Contrôle flottant déplaçable (visible uniquement quand le TTS est lancé) + popup
 
 ### Progression et navigation
-- Barre discrète indiquant la progression dans le chapitre
+- Panneau **Lecture** flottant au-dessus de l’auto-scroll (bas droite), déplaçable
+- Barre discrète en haut de page (optionnelle)
 - Estimation du temps de lecture et du temps audio restants
 - Position de lecture enregistrée localement avec bouton de reprise
 - Passage automatique optionnel au chapitre suivant à la fin du TTS

@@ -3,6 +3,7 @@
 
   const AUDIO_SELECTOR = 'section[aria-label="Lecture audio du chapitre"] audio';
   const PROGRESS_ID = "nf-reading-progress";
+  const PANEL_ID = "nf-reading-panel";
   const RESUME_ID = "nf-reading-resume";
   const SAVE_DELAY_MS = 1500;
   const READING_SPEED_WPM = 220;
@@ -80,11 +81,213 @@
     return Math.max(0, (audio.duration - audio.currentTime) / state.playbackRate);
   }
 
+  function formatDuration(seconds) {
+    if (seconds === null || seconds === undefined) {
+      return "—";
+    }
+    const total = Math.max(0, Math.round(seconds));
+    const minutes = Math.floor(total / 60);
+    const remainder = total % 60;
+    return minutes + ":" + String(remainder).padStart(2, "0");
+  }
+
+  function setSliderFill(slider, value, min, max) {
+    const fill = max > min ? ((value - min) / (max - min)) * 100 : 0;
+    slider.style.setProperty("--nf-fill", fill + "%");
+  }
+
+  function formatReadingRemaining(percent) {
+    const minutes = getReadingMinutesRemaining(percent);
+    if (minutes === null) {
+      return "Temps de lecture indisponible";
+    }
+    if (minutes === 0) {
+      return "Fin du chapitre";
+    }
+    return "~" + minutes + " min restantes";
+  }
+
+  function formatAudioRemaining() {
+    const seconds = getAudioRemaining();
+    if (seconds === null) {
+      return "Audio indisponible";
+    }
+    return formatDuration(seconds);
+  }
+
   function canResume() {
     return Boolean(
       state.resumeTarget &&
       !state.resumeUsed &&
       Math.abs(window.scrollY - state.resumeTarget.scrollY) > 150
+    );
+  }
+
+  function setAutoNextChapter(enabled) {
+    state.settings.reader.autoNextChapter = Boolean(enabled);
+    NFStorage.saveSettings(state.settings).catch(() => {});
+    updateUi();
+  }
+
+  function hasCustomPanelPosition() {
+    const pos = state.settings?.readerPanelPosition;
+    return Boolean(pos && Number.isFinite(pos.left) && Number.isFinite(pos.top));
+  }
+
+  function applyPanelPosition(host) {
+    if (hasCustomPanelPosition()) {
+      const pos = state.settings.readerPanelPosition;
+      host.style.left = pos.left + "px";
+      host.style.top = pos.top + "px";
+      host.style.right = "auto";
+      host.style.bottom = "auto";
+      host.style.transform = "none";
+      return;
+    }
+    host.style.removeProperty("left");
+    host.style.removeProperty("top");
+    host.style.removeProperty("right");
+    host.style.removeProperty("bottom");
+    host.style.removeProperty("transform");
+  }
+
+  function initPanelDrag(host, handle) {
+    if (handle.dataset.bound) {
+      return;
+    }
+    handle.dataset.bound = "1";
+
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    handle.addEventListener("mousedown", (event) => {
+      const rect = host.getBoundingClientRect();
+      if (!host.style.left) {
+        host.style.left = rect.left + "px";
+        host.style.top = rect.top + "px";
+        host.style.right = "auto";
+        host.style.bottom = "auto";
+        host.style.transform = "none";
+      }
+      dragging = true;
+      offsetX = event.clientX - rect.left;
+      offsetY = event.clientY - rect.top;
+      event.preventDefault();
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      if (!dragging) {
+        return;
+      }
+      host.style.left = clamp(event.clientX - offsetX, 8, window.innerWidth - host.offsetWidth - 8) + "px";
+      host.style.top = clamp(event.clientY - offsetY, 8, window.innerHeight - host.offsetHeight - 8) + "px";
+    });
+
+    window.addEventListener("mouseup", async () => {
+      if (!dragging) {
+        return;
+      }
+      dragging = false;
+      state.settings.readerPanelPosition = {
+        left: parseInt(host.style.left, 10),
+        top: parseInt(host.style.top, 10),
+      };
+      await NFStorage.saveSettings(state.settings);
+    });
+  }
+
+  function ensurePanel() {
+    if (!state.settings?.reader.showFloatingPanel || !state.chapterKey) {
+      document.getElementById(PANEL_ID)?.remove();
+      return null;
+    }
+
+    let host = document.getElementById(PANEL_ID);
+    if (host) {
+      return host;
+    }
+
+    host = document.createElement("div");
+    host.id = PANEL_ID;
+    host.className = "nf-reading-panel";
+    host.innerHTML =
+      '<div class="nf-reading-panel-head">' +
+      '<span class="nf-reading-panel-handle">Lecture</span>' +
+      '<span class="nf-reading-panel-percent">0 %</span>' +
+      "</div>" +
+      '<div class="nf-reading-panel-progress" aria-hidden="true"><span class="nf-reading-panel-progress-fill"></span></div>' +
+      '<div class="nf-reading-panel-metrics">' +
+      '<span class="nf-reading-panel-reading-time">—</span>' +
+      '<span class="nf-reading-panel-audio-time">—</span>' +
+      "</div>" +
+      '<button type="button" class="nf-reading-panel-resume" hidden>Revenir à la dernière position</button>' +
+      '<div class="nf-reading-panel-seek">' +
+      '<button type="button" class="nf-reading-panel-seek-btn" data-seek="-10">−10 s</button>' +
+      '<label class="nf-reading-panel-rate">' +
+      '<span class="nf-reading-panel-rate-top"><span>Vitesse TTS</span><span class="nf-reading-panel-rate-value">1×</span></span>' +
+      '<input class="nf-reading-panel-rate-slider" type="range" min="0.75" max="2" step="0.25" aria-label="Vitesse TTS" />' +
+      "</label>" +
+      '<button type="button" class="nf-reading-panel-seek-btn" data-seek="10">+10 s</button>' +
+      "</div>" +
+      '<label class="nf-reading-panel-auto-next">' +
+      '<input type="checkbox" class="nf-reading-panel-auto-next-input" />' +
+      "<span>Chapitre suivant automatique</span>" +
+      "</label>";
+
+    host.querySelector(".nf-reading-panel-resume").addEventListener("click", resumeReading);
+    host.querySelectorAll(".nf-reading-panel-seek-btn").forEach((button) => {
+      button.addEventListener("click", () => seekBy(Number(button.dataset.seek)));
+    });
+
+    const slider = host.querySelector(".nf-reading-panel-rate-slider");
+    slider.addEventListener("input", () => setPlaybackRate(Number(slider.value), false));
+    slider.addEventListener("change", () => setPlaybackRate(Number(slider.value), true));
+
+    host.querySelector(".nf-reading-panel-auto-next-input").addEventListener("change", (event) => {
+      setAutoNextChapter(event.target.checked);
+    });
+
+    document.body.appendChild(host);
+    applyPanelPosition(host);
+    initPanelDrag(host, host.querySelector(".nf-reading-panel-handle"));
+    return host;
+  }
+
+  function updatePanelUi() {
+    const host = ensurePanel();
+    if (!host) {
+      return;
+    }
+
+    const progress = state.currentProgress || getScrollProgress();
+    const percent = Math.round(progress.percent);
+
+    host.querySelector(".nf-reading-panel-percent").textContent = percent + " %";
+    host.querySelector(".nf-reading-panel-progress-fill").style.width = percent + "%";
+    host.querySelector(".nf-reading-panel-reading-time").textContent = formatReadingRemaining(progress.percent);
+    host.querySelector(".nf-reading-panel-audio-time").textContent = formatAudioRemaining();
+
+    const resumeBtn = host.querySelector(".nf-reading-panel-resume");
+    if (canResume()) {
+      resumeBtn.hidden = false;
+      resumeBtn.textContent = `↩ Reprendre à ${Math.round(state.resumeTarget.percent)} %`;
+    } else {
+      resumeBtn.hidden = true;
+    }
+
+    host.querySelectorAll(".nf-reading-panel-seek-btn").forEach((button) => {
+      button.disabled = !state.audio;
+    });
+
+    const slider = host.querySelector(".nf-reading-panel-rate-slider");
+    slider.value = String(state.playbackRate);
+    slider.disabled = !state.chapterKey;
+    host.querySelector(".nf-reading-panel-rate-value").textContent = state.playbackRate + "×";
+    setSliderFill(slider, state.playbackRate, 0.75, 2);
+
+    host.querySelector(".nf-reading-panel-auto-next-input").checked = Boolean(
+      state.settings?.reader.autoNextChapter
     );
   }
 
@@ -109,7 +312,7 @@
   }
 
   function ensureResumeButton() {
-    if (!canResume() || state.resumeDismissed || !state.chapterKey) {
+    if (state.settings?.reader.showFloatingPanel || !canResume() || state.resumeDismissed || !state.chapterKey) {
       document.getElementById(RESUME_ID)?.remove();
       return;
     }
@@ -144,6 +347,7 @@
     if (!state.chapterKey) {
       document.getElementById(PROGRESS_ID)?.remove();
       document.getElementById(RESUME_ID)?.remove();
+      document.getElementById(PANEL_ID)?.remove();
       return;
     }
     const progress = getScrollProgress();
@@ -156,6 +360,7 @@
       host.title = `Progression du chapitre : ${Math.round(percent)} %`;
     }
     ensureResumeButton();
+    updatePanelUi();
   }
 
   function persistProgress(chapterKey = state.chapterKey, progress = state.currentProgress) {
@@ -179,6 +384,7 @@
     state.resumeUsed = true;
     window.scrollTo({ top: state.resumeTarget.scrollY, behavior: "smooth" });
     document.getElementById(RESUME_ID)?.remove();
+    updatePanelUi();
   }
 
   function applyPlaybackRate() {
@@ -387,8 +593,8 @@
         return true;
       }
       if (message.type === "NF_SET_AUTO_NEXT") {
-        state.settings.reader.autoNextChapter = Boolean(message.enabled);
-        NFStorage.saveSettings(state.settings).then(() => sendResponse({ ok: true }));
+        setAutoNextChapter(message.enabled);
+        sendResponse({ ok: true });
         return true;
       }
       if (message.type === "NF_SETTINGS_UPDATED") {
@@ -403,7 +609,16 @@
     });
   }
 
+  function teardownOnContextInvalidated() {
+    NFStorage.onContextInvalidated(() => {
+      window.clearTimeout(state.saveTimer);
+      window.clearTimeout(state.rateSaveTimer);
+      window.clearTimeout(state.contentRefreshTimer);
+    });
+  }
+
   async function start() {
+    teardownOnContextInvalidated();
     state.settings = await NFStorage.getSettings();
     await loadRouteContext();
     bindAudio();
@@ -435,14 +650,14 @@
         NFStorage.getSettings().then((settings) => {
           state.settings = settings;
           updateUi();
-        });
+        }).catch(() => {});
       }
     });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", () => start().catch(() => {}));
   } else {
-    start();
+    start().catch(() => {});
   }
 })();

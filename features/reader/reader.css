@@ -18,6 +18,194 @@
   transition: width 0.12s linear;
 }
 
+.nf-reading-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 300px;
+  z-index: 9997;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 24, 0.94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.88);
+  font: 12px/1.35 system-ui, -apple-system, sans-serif;
+}
+
+.nf-reading-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nf-reading-panel-handle {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  cursor: grab;
+  user-select: none;
+}
+
+.nf-reading-panel-percent {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(225, 29, 72, 0.16);
+  color: #fda4af;
+  font-variant-numeric: tabular-nums;
+}
+
+.nf-reading-panel-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nf-reading-panel-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #e11d48;
+  transition: width 0.12s linear;
+}
+
+.nf-reading-panel-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.nf-reading-panel-metrics span:last-child {
+  text-align: right;
+}
+
+.nf-reading-panel-resume {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.88);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: 600 11px/1.2 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  text-align: center;
+}
+
+.nf-reading-panel-resume:hover {
+  border-color: rgba(225, 29, 72, 0.45);
+  background: rgba(225, 29, 72, 0.12);
+}
+
+.nf-reading-panel-seek {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: end;
+  gap: 8px;
+}
+
+.nf-reading-panel-seek-btn {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.88);
+  font: 600 10px/1 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+}
+
+.nf-reading-panel-seek-btn:hover:not(:disabled) {
+  border-color: rgba(225, 29, 72, 0.45);
+  background: rgba(225, 29, 72, 0.12);
+}
+
+.nf-reading-panel-seek-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.nf-reading-panel-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nf-reading-panel-rate-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nf-reading-panel-rate-value {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.nf-reading-panel-rate-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #e11d48 0%,
+    #e11d48 var(--nf-fill, 0%),
+    rgba(255, 255, 255, 0.12) var(--nf-fill, 0%),
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  cursor: pointer;
+  outline: none;
+}
+
+.nf-reading-panel-rate-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #e11d48;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.nf-reading-panel-rate-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #e11d48;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.nf-reading-panel-auto-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  user-select: none;
+}
+
+.nf-reading-panel-auto-next input {
+  accent-color: #e11d48;
+}
+
 #nf-reading-resume {
   position: fixed;
   left: 50%;
@@ -65,4 +253,12 @@
 .nf-reading-resume-close:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 640px) {
+  .nf-reading-panel {
+    right: 8px;
+    bottom: 260px;
+    width: min(300px, calc(100vw - 16px));
+  }
 }
