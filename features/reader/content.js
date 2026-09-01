@@ -289,6 +289,7 @@
     host.querySelector(".nf-reading-panel-auto-next-input").checked = Boolean(
       state.settings?.reader.autoNextChapter
     );
+    applyPanelPosition(host);
   }
 
   function ensureProgressBar() {

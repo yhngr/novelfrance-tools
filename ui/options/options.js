@@ -37,6 +37,7 @@ const fields = {
 };
 
 const saveBtn = document.getElementById("save-btn");
+const resetPanelPositionsBtn = document.getElementById("resetPanelPositions");
 const statusEl = document.getElementById("status");
 
 function setRangeFill(input, value, min, max) {
@@ -161,13 +162,7 @@ async function saveOptions() {
   };
 
   await NFStorage.saveSettings(settings);
-
-  const tabs = await chrome.tabs.query({});
-  tabs.forEach((tab) => {
-    if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: "NF_SETTINGS_UPDATED" }).catch(() => {});
-    }
-  });
+  await notifyOpenTabs();
 
   statusEl.textContent = "Enregistré ✓";
   setTimeout(() => {
@@ -175,5 +170,28 @@ async function saveOptions() {
   }, 2500);
 }
 
+async function notifyOpenTabs() {
+  const tabs = await chrome.tabs.query({});
+  tabs.forEach((tab) => {
+    if (tab.id) {
+      chrome.tabs.sendMessage(tab.id, { type: "NF_SETTINGS_UPDATED" }).catch(() => {});
+    }
+  });
+}
+
+async function resetPanelPositions() {
+  const current = await NFStorage.getSettings();
+  current.floatingPosition = null;
+  current.autoScrollPosition = null;
+  current.readerPanelPosition = null;
+  await NFStorage.saveSettings(current);
+  await notifyOpenTabs();
+  statusEl.textContent = "Positions réinitialisées ✓";
+  setTimeout(() => {
+    statusEl.textContent = "";
+  }, 2500);
+}
+
 saveBtn.addEventListener("click", saveOptions);
+resetPanelPositionsBtn.addEventListener("click", resetPanelPositions);
 loadOptions();

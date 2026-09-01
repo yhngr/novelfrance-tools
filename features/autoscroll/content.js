@@ -226,7 +226,12 @@
       host.style.top = pos.top + "px";
       host.style.right = "auto";
       host.style.bottom = "auto";
+      return;
     }
+    host.style.removeProperty("left");
+    host.style.removeProperty("top");
+    host.style.removeProperty("right");
+    host.style.removeProperty("bottom");
   }
 
   function initPanelDrag(host, handle) {
@@ -335,8 +340,8 @@
 
     let host = document.getElementById(PANEL_ID);
     if (host) {
-      updatePanelUi();
-      return;
+      applyPanelPosition(host);
+      return host;
     }
 
     host = document.createElement("div");

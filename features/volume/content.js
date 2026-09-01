@@ -330,7 +330,12 @@
       host.style.top = pos.top + "px";
       host.style.right = "auto";
       host.style.bottom = "auto";
+      return;
     }
+    host.style.removeProperty("left");
+    host.style.removeProperty("top");
+    host.style.removeProperty("right");
+    host.style.removeProperty("bottom");
   }
 
   function initFloatingDrag(host) {
@@ -393,32 +398,35 @@
     }
 
     let host = document.getElementById(FLOATING_ID);
-    if (!host) {
-      host = document.createElement("div");
-      host.id = FLOATING_ID;
-      host.className = "nf-volume-floating";
-
-      const handle = document.createElement("div");
-      handle.className = "nf-volume-floating-handle";
-      handle.textContent = "Volume";
-      handle.title = "Glisser pour déplacer";
-
-      const scrollBtn = document.createElement("button");
-      scrollBtn.type = "button";
-      scrollBtn.className = "nf-volume-scroll-btn";
-      scrollBtn.textContent = "↩ Lecteur";
-      scrollBtn.title = "Retour à la barre audio";
-      scrollBtn.addEventListener("click", scrollToAudioBar);
-
-      host.append(handle, scrollBtn);
-      document.body.appendChild(host);
-
-      state.floatingWidget = createVolumeWidget({ compact: true, register: false, showProfiles: false });
-      host.appendChild(state.floatingWidget.wrapper);
-
+    if (host) {
       applyFloatingPosition(host);
-      initFloatingDrag(host);
+      return;
     }
+
+    host = document.createElement("div");
+    host.id = FLOATING_ID;
+    host.className = "nf-volume-floating";
+
+    const handle = document.createElement("div");
+    handle.className = "nf-volume-floating-handle";
+    handle.textContent = "Volume";
+    handle.title = "Glisser pour déplacer";
+
+    const scrollBtn = document.createElement("button");
+    scrollBtn.type = "button";
+    scrollBtn.className = "nf-volume-scroll-btn";
+    scrollBtn.textContent = "↩ Lecteur";
+    scrollBtn.title = "Retour à la barre audio";
+    scrollBtn.addEventListener("click", scrollToAudioBar);
+
+    host.append(handle, scrollBtn);
+    document.body.appendChild(host);
+
+    state.floatingWidget = createVolumeWidget({ compact: true, register: false, showProfiles: false });
+    host.appendChild(state.floatingWidget.wrapper);
+
+    applyFloatingPosition(host);
+    initFloatingDrag(host);
   }
 
   function isTtsSessionActive() {
