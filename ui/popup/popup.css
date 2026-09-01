@@ -19,6 +19,8 @@
 body {
   margin: 0;
   width: 300px;
+  max-height: 600px;
+  overflow-y: auto;
   background: var(--bg);
   color: var(--text);
   font: 13px/1.45 system-ui, -apple-system, sans-serif;
@@ -146,6 +148,90 @@ body {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-secondary {
+  border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(225, 29, 72, 0.45);
+  background: var(--accent-soft);
+}
+
+.reader-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.reader-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.15s linear;
+}
+
+.reader-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-metrics span:last-child {
+  text-align: right;
+}
+
+.reader-seek-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: end;
+  gap: 8px;
+}
+
+.reader-rate {
+  min-width: 0;
+}
+
+.small-btn {
+  min-height: 32px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: 600 10px/1 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+}
+
+.small-btn:hover {
+  border-color: rgba(225, 29, 72, 0.45);
+  background: var(--accent-soft);
+}
+
+.small-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.reader-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.reader-toggle input {
+  accent-color: var(--accent);
 }
 
 .field {

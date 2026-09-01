@@ -2,7 +2,7 @@
 
 Extension Chromium pour [novelfrance.fr](https://novelfrance.fr) — contrôle du volume TTS, défilement automatique du chapitre et raccourcis clavier.
 
-> **Version actuelle : 2.3.3**
+> **Version actuelle : 2.4.0**
 
 ## Fonctionnalités
 
@@ -10,13 +10,15 @@ Extension Chromium pour [novelfrance.fr](https://novelfrance.fr) — contrôle d
 - Scroll fluide avec accumulation sub-pixel (10–160 px/s, stable même à basse vitesse)
 - Défilement continu par défaut, avec option pour le lier au TTS
 - Tolérance aux micro-pauses audio quand le TTS est activé
-- Pause automatique en cas de scroll manuel (bouton **Reprendre**)
+- Pause en cas de scroll manuel, conservée lors des changements de page jusqu’au clic sur **Reprendre**
 - Panneau flottant déplaçable (statut, toggle, curseur vitesse, retour lecteur)
 - Position par défaut : **bas droite** (volume : bas gauche)
 - Raccourci `S` (personnalisable)
 
 ### Volume TTS
 - Curseur intégré dans la barre « Lecture audio du chapitre »
+- Vitesse de lecture de 0,75× à 2×, mémorisée séparément pour chaque roman
+- Retour et avance de 10 secondes depuis le popup ou les raccourcis clavier
 - Volume max **100 %** par défaut (boost optionnel dans Options)
 - Presets 25 / 50 / 75 / 100 % — masquables via bouton **▾** (au clic, pas au survol)
 - Profils **Nuit / Voix faible / Casque** (volume + égaliseur)
@@ -25,22 +27,26 @@ Extension Chromium pour [novelfrance.fr](https://novelfrance.fr) — contrôle d
 - Molette souris, fade in/out, badge sur l'icône extension
 - Contrôle flottant déplaçable (visible uniquement quand le TTS est lancé) + popup
 
+### Progression et navigation
+- Barre discrète indiquant la progression dans le chapitre
+- Estimation du temps de lecture et du temps audio restants
+- Position de lecture enregistrée localement avec bouton de reprise
+- Passage automatique optionnel au chapitre suivant à la fin du TTS
+
 ### Interface
-- **Popup** : cartes volume et auto-scroll, presets, profils, raccourcis
+- **Popup** : lecture (progression, vitesse TTS, reprise), auto-scroll, volume, profils
 - **Options** : page complète avec toggles, curseurs visuels et barre d'enregistrement fixe
 - Thème sombre unifié (accent rose)
 
 ## Installation
 
-```bash
-git clone https://github.com/yhngr/novelfrance-tools.git
-cd novelfrance-tools
-```
+1. Télécharger l’archive ZIP du projet puis l’extraire, ou cloner le dépôt
+2. Ouvrir `chrome://extensions/` (ou `edge://extensions/`)
+3. Activer le **Mode développeur**
+4. **Charger l'extension non empaquetée** → sélectionner le dossier du projet
+5. Recharger la page novelfrance.fr
 
-1. Ouvrir `chrome://extensions/` (ou `edge://extensions/`)
-2. Activer le **Mode développeur**
-3. **Charger l'extension non empaquetée** → sélectionner le dossier du projet
-4. Recharger la page novelfrance.fr
+Aucune dépendance ni étape de compilation n’est nécessaire.
 
 ## Utilisation rapide
 
@@ -49,6 +55,8 @@ cd novelfrance-tools
 | `S` | Activer / pause auto-scroll |
 | `M` | Mute / unmute TTS |
 | `↑` / `↓` | Volume ±5 % |
+| `J` / `L` | Reculer / avancer le TTS de 10 secondes |
+| `[` / `]` | Diminuer / augmenter la vitesse TTS |
 | Molette sur barre volume | Ajuster le volume |
 | Bouton **▾** (barre volume) | Afficher / masquer presets et profils |
 | Icône extension | Popup volume + scroll |
@@ -65,6 +73,7 @@ Les touches média du clavier (volume / mute) sont aussi prises en charge.
 ├── features/
 │   ├── volume/       # audio-engine, content, volume.css
 │   └── autoscroll/   # content, autoscroll.css
+│   └── reader/       # progression, reprise et navigation
 ├── ui/
 │   ├── popup/        # popup extension
 │   └── options/      # page de réglages
@@ -74,14 +83,16 @@ Les touches média du clavier (volume / mute) sont aussi prises en charge.
 ## Compatibilité
 
 - Chrome, Edge, Brave et autres navigateurs Chromium (Manifest V3)
-- Testé sur novelfrance.fr — d'autres sites peuvent être ajoutés via Options (motifs Chrome)
+- Accès limité à `https://novelfrance.fr` et ses sous-domaines HTTPS
 
 ## Confidentialité
 
 - Aucune collecte de données personnelles
-- Aucune communication avec un serveur externe
-- Stockage local via `chrome.storage.sync` (préférences et volume uniquement)
-- Accès limité aux sites configurés (novelfrance.fr par défaut)
+- Aucune requête réseau vers un serveur applicatif externe
+- Préférences générales synchronisées via `chrome.storage.sync`
+- Volumes, romans et narrateurs conservés uniquement sur l'appareil via `chrome.storage.local`
+- Progression et vitesse TTS par roman conservées uniquement sur l'appareil
+- Aucun accès aux métadonnées des autres onglets et aucune permission globale sur tous les sites
 
 ## Licence
 

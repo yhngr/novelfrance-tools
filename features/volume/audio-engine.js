@@ -51,6 +51,7 @@ const NFAudioEngine = (() => {
 
     const chain = {
       ctx,
+      source,
       gain,
       bass,
       mid,
@@ -137,7 +138,7 @@ const NFAudioEngine = (() => {
         return;
       }
       const rms = measureRms(audio);
-      if (rms != null && rms > 0.001) {
+      if (rms !== null && rms > 0.001) {
         onSample(rms);
       }
     }, 1200);
@@ -153,8 +154,29 @@ const NFAudioEngine = (() => {
     }
   }
 
+  async function disconnect(audio) {
+    stopSampling(audio);
+    const chain = chains.get(audio);
+    if (!chain) {
+      return;
+    }
+
+    [chain.source, chain.bass, chain.mid, chain.treble, chain.gain, chain.compressor, chain.analyser]
+      .forEach((node) => node.disconnect());
+
+    contexts.delete(chain.ctx);
+    chains.delete(audio);
+    if (chain.ctx.state !== "closed") {
+      await chain.ctx.close();
+    }
+  }
+
   async function keepAlive() {
     for (const ctx of contexts) {
+      if (ctx.state === "closed") {
+        contexts.delete(ctx);
+        continue;
+      }
       if (ctx.state === "suspended") {
         await ctx.resume();
       }
@@ -167,6 +189,7 @@ const NFAudioEngine = (() => {
     measureRms,
     startSampling,
     stopSampling,
+    disconnect,
     keepAlive,
     resumeContext,
   };

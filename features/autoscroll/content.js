@@ -5,6 +5,7 @@
   const TTS_SECTION = 'section[aria-label="Lecture audio du chapitre"]';
   const TTS_GRACE_MS = 600;
   const UI_REFRESH_MS = 400;
+  const SESSION_STATE_KEY = "nf-tools-autoscroll-state";
 
   const state = {
     settings: null,
@@ -14,14 +15,40 @@
     lastFrame: 0,
     lastUiRefresh: 0,
     scrollRemainder: 0,
-    manualPauseTimer: null,
     userEnabled: false,
     userToggledOff: false,
+    sessionRestored: false,
     ttsGraceUntil: 0,
   };
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function readSessionState() {
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(SESSION_STATE_KEY));
+      if (typeof saved?.userEnabled !== "boolean" || typeof saved?.paused !== "boolean") {
+        return null;
+      }
+      return saved;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function saveSessionState() {
+    try {
+      window.sessionStorage.setItem(
+        SESSION_STATE_KEY,
+        JSON.stringify({
+          userEnabled: state.userEnabled,
+          paused: state.paused,
+        })
+      );
+    } catch (_error) {
+      return;
+    }
   }
 
   function atBottom() {
@@ -102,11 +129,17 @@
     state.rafId = requestAnimationFrame(tick);
   }
 
-  function startScroll(fromUser) {
+  function startScroll(fromUser, preservePause = false) {
     if (fromUser) {
       state.userEnabled = true;
     }
-    state.paused = false;
+    if (!preservePause) {
+      state.paused = false;
+    }
+
+    if (fromUser) {
+      saveSessionState();
+    }
 
     if (state.running) {
       updatePanelUi();
@@ -130,6 +163,10 @@
     state.scrollRemainder = 0;
     state.lastFrame = 0;
 
+    if (fromUser) {
+      saveSessionState();
+    }
+
     if (state.rafId) {
       cancelAnimationFrame(state.rafId);
       state.rafId = null;
@@ -139,7 +176,7 @@
 
   function resumeFromPause() {
     state.paused = false;
-    clearTimeout(state.manualPauseTimer);
+    saveSessionState();
     updatePanelUi();
   }
 
@@ -157,20 +194,13 @@
     }
   }
 
-  function pauseTemporarily() {
-    if (!state.settings.autoScroll.pauseOnManualScroll) {
+  function pauseForManualInput() {
+    if (!state.settings.autoScroll.pauseOnManualScroll || !state.userEnabled || state.paused) {
       return;
     }
-    const wasPaused = state.paused;
     state.paused = true;
-    clearTimeout(state.manualPauseTimer);
-    state.manualPauseTimer = setTimeout(() => {
-      state.paused = false;
-      updatePanelUi();
-    }, 2500);
-    if (!wasPaused) {
-      updatePanelUi();
-    }
+    saveSessionState();
+    updatePanelUi();
   }
 
   let saveSpeedTimer = null;
@@ -351,7 +381,7 @@
       "wheel",
       (event) => {
         if (state.running && !ignorePanel(event.target)) {
-          pauseTemporarily();
+          pauseForManualInput();
         }
       },
       { passive: true }
@@ -361,7 +391,7 @@
       "touchmove",
       (event) => {
         if (state.running && !ignorePanel(event.target)) {
-          pauseTemporarily();
+          pauseForManualInput();
         }
       },
       { passive: true }
@@ -426,9 +456,22 @@
 
   async function bootstrap() {
     state.settings = await NFStorage.getSettings();
+
+    if (!state.sessionRestored) {
+      const saved = readSessionState();
+      state.sessionRestored = true;
+      if (saved) {
+        state.userEnabled = saved.userEnabled;
+        state.paused = saved.paused && saved.userEnabled;
+        state.userToggledOff = !saved.userEnabled;
+      }
+    }
+
     ensurePanel();
 
-    if (!state.settings.autoScroll.enabled) {
+    if (state.userEnabled && !state.running) {
+      startScroll(false, state.paused);
+    } else if (!state.settings.autoScroll.enabled) {
       if (!state.userEnabled) {
         stopScroll(false);
       }

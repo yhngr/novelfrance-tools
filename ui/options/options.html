@@ -38,7 +38,7 @@
         <label class="toggle">
           <input id="autoScrollPauseManual" type="checkbox" />
           <span class="toggle-ui" aria-hidden="true"></span>
-          <span class="toggle-label">Pause temporaire si scroll manuel</span>
+          <span class="toggle-label">Pause si scroll manuel</span>
         </label>
         <label class="toggle">
           <input id="autoScrollShowPanel" type="checkbox" />
@@ -58,6 +58,45 @@
           <span>Raccourci clavier</span>
           <input id="shortcutAutoScroll" class="input-short" type="text" maxlength="20" placeholder="s" />
         </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Lecture du chapitre</h2>
+          <span class="card-tag">Lecture</span>
+        </div>
+        <p class="card-desc">Progression locale, commandes TTS et navigation entre les chapitres.</p>
+
+        <label class="toggle">
+          <input id="readerShowProgress" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Afficher la barre de progression discrète</span>
+        </label>
+        <label class="toggle">
+          <input id="autoNextChapter" type="checkbox" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+          <span class="toggle-label">Passer au chapitre suivant à la fin du TTS</span>
+        </label>
+
+        <p class="hint">La vitesse TTS est mémorisée séparément pour chaque roman.</p>
+        <div class="shortcut-grid shortcut-grid--reader">
+          <label class="field field-inline">
+            <span>−10 secondes</span>
+            <input id="shortcutSeekBackward" class="input-short" type="text" maxlength="20" />
+          </label>
+          <label class="field field-inline">
+            <span>+10 secondes</span>
+            <input id="shortcutSeekForward" class="input-short" type="text" maxlength="20" />
+          </label>
+          <label class="field field-inline">
+            <span>Vitesse −</span>
+            <input id="shortcutRateDown" class="input-short" type="text" maxlength="20" />
+          </label>
+          <label class="field field-inline">
+            <span>Vitesse +</span>
+            <input id="shortcutRateUp" class="input-short" type="text" maxlength="20" />
+          </label>
+        </div>
       </section>
 
       <section class="card">
@@ -199,15 +238,6 @@
           </div>
           <input id="eqTreble" class="range" type="range" min="-12" max="12" step="1" />
         </label>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>Sites compatibles</h2>
-          <span class="card-tag">Sites</span>
-        </div>
-        <p class="hint">Un motif par ligne, format Chrome (ex: *://novelfrance.fr/*)</p>
-        <textarea id="sites" rows="4" spellcheck="false"></textarea>
       </section>
 
       <footer class="options-footer">

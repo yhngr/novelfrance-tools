@@ -5,6 +5,7 @@ const NFStorage = (() => {
     settings: "nf_settings",
     volumes: "nf_volumes",
     narratorLevels: "nf_narrator_levels",
+    readerState: "nf_reader_state",
     legacy: "nf_tts_volume",
   };
 
@@ -34,6 +35,11 @@ const NFStorage = (() => {
     showFloatingControl: true,
   };
 
+  const DEFAULT_READER = {
+    showProgressBar: true,
+    autoNextChapter: false,
+  };
+
   const DEFAULT_SETTINGS = {
     defaultVolume: 100,
     sliderStep: 5,
@@ -54,11 +60,15 @@ const NFStorage = (() => {
       volumeUp: "ArrowUp",
       volumeDown: "ArrowDown",
       toggleAutoScroll: "s",
+      seekBackward: "j",
+      seekForward: "l",
+      rateDown: "[",
+      rateUp: "]",
     },
     autoScroll: { ...DEFAULT_AUTO_SCROLL },
+    reader: { ...DEFAULT_READER },
     floatingPosition: null,
     autoScrollPosition: null,
-    sites: ["*://novelfrance.fr/*", "*://*.novelfrance.fr/*"],
   };
 
   const DEFAULT_VOLUMES = {
@@ -67,49 +77,243 @@ const NFStorage = (() => {
     byNarrator: {},
   };
 
+  function clampNumber(value, fallback, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, number));
+  }
+
+  function booleanValue(value, fallback) {
+    return typeof value === "boolean" ? value : fallback;
+  }
+
+  function shortcutValue(value, fallback) {
+    if (typeof value !== "string") {
+      return fallback;
+    }
+    const normalized = value.trim().slice(0, 20);
+    return normalized || fallback;
+  }
+
+  function positionValue(value) {
+    if (!value || !Number.isFinite(value.left) || !Number.isFinite(value.top)) {
+      return null;
+    }
+    return { left: value.left, top: value.top };
+  }
+
   function mergeSettings(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const equalizer = source.equalizer && typeof source.equalizer === "object" ? source.equalizer : {};
+    const shortcuts = source.shortcuts && typeof source.shortcuts === "object" ? source.shortcuts : {};
+    const autoScroll = source.autoScroll && typeof source.autoScroll === "object" ? source.autoScroll : {};
+    const reader = source.reader && typeof source.reader === "object" ? source.reader : {};
+
     return {
-      ...DEFAULT_SETTINGS,
-      ...raw,
-      equalizer: { ...DEFAULT_SETTINGS.equalizer, ...(raw?.equalizer || {}) },
-      shortcuts: { ...DEFAULT_SETTINGS.shortcuts, ...(raw?.shortcuts || {}) },
-      autoScroll: { ...DEFAULT_AUTO_SCROLL, ...(raw?.autoScroll || {}) },
-      sites: raw?.sites?.length ? raw.sites : DEFAULT_SETTINGS.sites,
+      defaultVolume: clampNumber(source.defaultVolume, DEFAULT_SETTINGS.defaultVolume, 0, 100),
+      sliderStep: clampNumber(source.sliderStep, DEFAULT_SETTINGS.sliderStep, 1, 20),
+      keyboardShortcuts: booleanValue(source.keyboardShortcuts, DEFAULT_SETTINGS.keyboardShortcuts),
+      boostEnabled: booleanValue(source.boostEnabled, DEFAULT_SETTINGS.boostEnabled),
+      maxBoost: clampNumber(source.maxBoost, DEFAULT_SETTINGS.maxBoost, 100, 300),
+      floatingControl: booleanValue(source.floatingControl, DEFAULT_SETTINGS.floatingControl),
+      compactPresets: booleanValue(source.compactPresets, DEFAULT_SETTINGS.compactPresets),
+      fadeEnabled: booleanValue(source.fadeEnabled, DEFAULT_SETTINGS.fadeEnabled),
+      fadeDurationMs: clampNumber(source.fadeDurationMs, DEFAULT_SETTINGS.fadeDurationMs, 0, 2000),
+      limiterEnabled: booleanValue(source.limiterEnabled, DEFAULT_SETTINGS.limiterEnabled),
+      narratorNormalization: booleanValue(
+        source.narratorNormalization,
+        DEFAULT_SETTINGS.narratorNormalization
+      ),
+      chapterEndNotification: booleanValue(
+        source.chapterEndNotification,
+        DEFAULT_SETTINGS.chapterEndNotification
+      ),
+      keepAliveIntervalMs: clampNumber(
+        source.keepAliveIntervalMs,
+        DEFAULT_SETTINGS.keepAliveIntervalMs,
+        250,
+        10000
+      ),
+      equalizer: {
+        bass: clampNumber(equalizer.bass, DEFAULT_SETTINGS.equalizer.bass, -12, 12),
+        mid: clampNumber(equalizer.mid, DEFAULT_SETTINGS.equalizer.mid, -12, 12),
+        treble: clampNumber(equalizer.treble, DEFAULT_SETTINGS.equalizer.treble, -12, 12),
+      },
+      shortcuts: {
+        mute: shortcutValue(shortcuts.mute, DEFAULT_SETTINGS.shortcuts.mute),
+        volumeUp: shortcutValue(shortcuts.volumeUp, DEFAULT_SETTINGS.shortcuts.volumeUp),
+        volumeDown: shortcutValue(shortcuts.volumeDown, DEFAULT_SETTINGS.shortcuts.volumeDown),
+        toggleAutoScroll: shortcutValue(
+          shortcuts.toggleAutoScroll,
+          DEFAULT_SETTINGS.shortcuts.toggleAutoScroll
+        ),
+        seekBackward: shortcutValue(shortcuts.seekBackward, DEFAULT_SETTINGS.shortcuts.seekBackward),
+        seekForward: shortcutValue(shortcuts.seekForward, DEFAULT_SETTINGS.shortcuts.seekForward),
+        rateDown: shortcutValue(shortcuts.rateDown, DEFAULT_SETTINGS.shortcuts.rateDown),
+        rateUp: shortcutValue(shortcuts.rateUp, DEFAULT_SETTINGS.shortcuts.rateUp),
+      },
+      autoScroll: {
+        enabled: booleanValue(autoScroll.enabled, DEFAULT_AUTO_SCROLL.enabled),
+        speed: clampNumber(autoScroll.speed, DEFAULT_AUTO_SCROLL.speed, 10, 160),
+        onlyWhenPlaying: booleanValue(autoScroll.onlyWhenPlaying, DEFAULT_AUTO_SCROLL.onlyWhenPlaying),
+        pauseOnManualScroll: booleanValue(
+          autoScroll.pauseOnManualScroll,
+          DEFAULT_AUTO_SCROLL.pauseOnManualScroll
+        ),
+        showFloatingControl: booleanValue(
+          autoScroll.showFloatingControl,
+          DEFAULT_AUTO_SCROLL.showFloatingControl
+        ),
+      },
+      reader: {
+        showProgressBar: booleanValue(reader.showProgressBar, DEFAULT_READER.showProgressBar),
+        autoNextChapter: booleanValue(reader.autoNextChapter, DEFAULT_READER.autoNextChapter),
+      },
+      floatingPosition: positionValue(source.floatingPosition),
+      autoScrollPosition: positionValue(source.autoScrollPosition),
     };
   }
 
   function mergeVolumes(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const sanitizeMap = (value) => {
+      if (!value || typeof value !== "object") {
+        return {};
+      }
+      return Object.fromEntries(
+        Object.entries(value)
+          .filter(([key, level]) => key.length <= 200 && Number.isFinite(Number(level)))
+          .map(([key, level]) => [key, clampNumber(level, 100, 0, 600)])
+      );
+    };
+
     return {
-      ...DEFAULT_VOLUMES,
-      ...raw,
-      byNovel: { ...DEFAULT_VOLUMES.byNovel, ...(raw?.byNovel || {}) },
-      byNarrator: { ...DEFAULT_VOLUMES.byNarrator, ...(raw?.byNarrator || {}) },
+      global: clampNumber(source.global, DEFAULT_VOLUMES.global, 0, 600),
+      byNovel: sanitizeMap(source.byNovel),
+      byNarrator: sanitizeMap(source.byNarrator),
     };
   }
 
-  function getSync(keys) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(keys, resolve);
-    });
-  }
-
-  function setSync(data) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.set(data, resolve);
-    });
-  }
-
-  async function migrateLegacy() {
-    const data = await getSync([KEYS.legacy, KEYS.volumes]);
-    if (typeof data[KEYS.legacy] === "number" && !data[KEYS.volumes]) {
-      const global = Math.round(data[KEYS.legacy] * 100);
-      await setSync({
-        [KEYS.volumes]: { ...DEFAULT_VOLUMES, global },
-      });
-      await new Promise((resolve) => {
-        chrome.storage.sync.remove(KEYS.legacy, resolve);
-      });
+  function sanitizeNarratorLevels(raw) {
+    if (!raw || typeof raw !== "object") {
+      return {};
     }
+    return Object.fromEntries(
+      Object.entries(raw)
+        .filter(([key, level]) => key.length <= 200 && Number.isFinite(Number(level)))
+        .map(([key, level]) => [key, clampNumber(level, 0.07, 0.0001, 1)])
+    );
+  }
+
+  function sanitizeReaderState(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const rawProgress = source.progressByChapter && typeof source.progressByChapter === "object"
+      ? source.progressByChapter
+      : {};
+    const rawRates = source.playbackRateByNovel && typeof source.playbackRateByNovel === "object"
+      ? source.playbackRateByNovel
+      : {};
+
+    const progressByChapter = Object.fromEntries(
+      Object.entries(rawProgress)
+        .filter(([key, value]) =>
+          typeof key === "string" &&
+          key.length <= 500 &&
+          /^\/novel\/[^/]+\/chapter-[^/?#]+/.test(key) &&
+          value &&
+          typeof value === "object" &&
+          Number.isFinite(Number(value.scrollY)) &&
+          Number.isFinite(Number(value.percent))
+        )
+        .map(([key, value]) => [
+          key,
+          {
+            scrollY: clampNumber(value.scrollY, 0, 0, 10000000),
+            percent: clampNumber(value.percent, 0, 0, 100),
+            updatedAt: clampNumber(value.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+          },
+        ])
+        .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+        .slice(0, 200)
+    );
+
+    const playbackRateByNovel = Object.fromEntries(
+      Object.entries(rawRates)
+        .filter(([key, value]) =>
+          typeof key === "string" &&
+          /^[a-z0-9-]{1,200}$/i.test(key) &&
+          Number.isFinite(Number(value))
+        )
+        .slice(-200)
+        .map(([key, value]) => [key, clampNumber(value, 1, 0.75, 2)])
+    );
+
+    return { progressByChapter, playbackRateByNovel };
+  }
+
+  function getArea(area, keys) {
+    return new Promise((resolve) => {
+      chrome.storage[area].get(keys, resolve);
+    });
+  }
+
+  function setArea(area, data) {
+    return new Promise((resolve) => {
+      chrome.storage[area].set(data, resolve);
+    });
+  }
+
+  function removeArea(area, keys) {
+    return new Promise((resolve) => {
+      chrome.storage[area].remove(keys, resolve);
+    });
+  }
+
+  let migrationPromise = null;
+
+  function ensureLocalDataMigrated() {
+    if (migrationPromise) {
+      return migrationPromise;
+    }
+
+    migrationPromise = (async () => {
+      const keys = [KEYS.legacy, KEYS.volumes, KEYS.narratorLevels];
+      const [syncData, localData] = await Promise.all([
+        getArea("sync", keys),
+        getArea("local", [KEYS.volumes, KEYS.narratorLevels]),
+      ]);
+      const localWrites = {};
+
+      if (!localData[KEYS.volumes]) {
+        if (syncData[KEYS.volumes]) {
+          localWrites[KEYS.volumes] = mergeVolumes(syncData[KEYS.volumes]);
+        } else if (typeof syncData[KEYS.legacy] === "number") {
+          localWrites[KEYS.volumes] = {
+            ...DEFAULT_VOLUMES,
+            global: Math.round(syncData[KEYS.legacy] * 100),
+          };
+        }
+      }
+
+      if (!localData[KEYS.narratorLevels] && syncData[KEYS.narratorLevels]) {
+        localWrites[KEYS.narratorLevels] = sanitizeNarratorLevels(syncData[KEYS.narratorLevels]);
+      }
+
+      if (Object.keys(localWrites).length) {
+        await setArea("local", localWrites);
+      }
+
+      const syncKeysToRemove = keys.filter(
+        (key) => syncData[key] !== null && syncData[key] !== undefined
+      );
+      if (syncKeysToRemove.length) {
+        await removeArea("sync", syncKeysToRemove);
+      }
+    })();
+
+    return migrationPromise;
   }
 
   function maxAllowedVolume(settings) {
@@ -120,55 +324,102 @@ const NFStorage = (() => {
   }
 
   async function getSettings() {
-    await migrateLegacy();
-    const data = await getSync(KEYS.settings);
-    const settings = mergeSettings(data[KEYS.settings]);
-    const raw = data[KEYS.settings];
-
-    if (raw && (raw.boostEnabled || (raw.maxBoost && raw.maxBoost > 100))) {
-      const capped = { ...settings, boostEnabled: false, maxBoost: 100 };
-      await setSync({ [KEYS.settings]: capped });
-      return capped;
-    }
-
-    return settings;
+    await ensureLocalDataMigrated();
+    const data = await getArea("sync", KEYS.settings);
+    return mergeSettings(data[KEYS.settings]);
   }
 
   async function saveSettings(settings) {
-    await setSync({ [KEYS.settings]: mergeSettings(settings) });
+    await setArea("sync", { [KEYS.settings]: mergeSettings(settings) });
   }
 
   async function getVolumes() {
-    await migrateLegacy();
-    const data = await getSync(KEYS.volumes);
+    await ensureLocalDataMigrated();
+    const data = await getArea("local", KEYS.volumes);
     return mergeVolumes(data[KEYS.volumes]);
   }
 
   async function saveVolumes(volumes) {
-    await setSync({ [KEYS.volumes]: mergeVolumes(volumes) });
+    await ensureLocalDataMigrated();
+    await setArea("local", { [KEYS.volumes]: mergeVolumes(volumes) });
   }
 
   async function getNarratorLevels() {
-    const data = await getSync(KEYS.narratorLevels);
-    return data[KEYS.narratorLevels] || {};
+    await ensureLocalDataMigrated();
+    const data = await getArea("local", KEYS.narratorLevels);
+    return sanitizeNarratorLevels(data[KEYS.narratorLevels]);
   }
 
   async function saveNarratorLevel(narrator, rms) {
     const levels = await getNarratorLevels();
-    const previous = levels[narrator];
-    levels[narrator] = previous ? previous * 0.7 + rms * 0.3 : rms;
-    await setSync({ [KEYS.narratorLevels]: levels });
+    if (typeof narrator !== "string" || !narrator.trim() || !Number.isFinite(rms) || rms <= 0) {
+      return levels;
+    }
+    const normalizedNarrator = narrator.trim().slice(0, 200);
+    const normalizedRms = clampNumber(rms, 0.07, 0.0001, 1);
+    const previous = levels[normalizedNarrator];
+    levels[normalizedNarrator] = previous
+      ? previous * 0.7 + normalizedRms * 0.3
+      : normalizedRms;
+    await setArea("local", { [KEYS.narratorLevels]: levels });
     return levels;
   }
 
+  async function getReaderState() {
+    const data = await getArea("local", KEYS.readerState);
+    return sanitizeReaderState(data[KEYS.readerState]);
+  }
+
+  async function saveReadingProgress(chapterKey, progress) {
+    if (typeof chapterKey !== "string" || !/^\/novel\/[^/]+\/chapter-[^/?#]+/.test(chapterKey)) {
+      return;
+    }
+    const readerState = await getReaderState();
+    readerState.progressByChapter[chapterKey.slice(0, 500)] = {
+      scrollY: clampNumber(progress?.scrollY, 0, 0, 10000000),
+      percent: clampNumber(progress?.percent, 0, 0, 100),
+      updatedAt: Date.now(),
+    };
+    await setArea("local", { [KEYS.readerState]: sanitizeReaderState(readerState) });
+  }
+
+  async function getReadingProgress(chapterKey) {
+    const readerState = await getReaderState();
+    return readerState.progressByChapter[chapterKey] || null;
+  }
+
+  async function getPlaybackRate(novelSlug) {
+    const readerState = await getReaderState();
+    return readerState.playbackRateByNovel[novelSlug] || 1;
+  }
+
+  async function savePlaybackRate(novelSlug, rate) {
+    if (typeof novelSlug !== "string" || !/^[a-z0-9-]{1,200}$/i.test(novelSlug)) {
+      return 1;
+    }
+    const readerState = await getReaderState();
+    const normalized = clampNumber(rate, 1, 0.75, 2);
+    readerState.playbackRateByNovel[novelSlug] = normalized;
+    await setArea("local", { [KEYS.readerState]: sanitizeReaderState(readerState) });
+    return normalized;
+  }
+
   function resolveVolume(volumes, novelSlug, narrator, settings) {
-    if (narrator && volumes.byNarrator[narrator] != null) {
+    if (
+      narrator &&
+      volumes.byNarrator[narrator] !== null &&
+      volumes.byNarrator[narrator] !== undefined
+    ) {
       return volumes.byNarrator[narrator];
     }
-    if (novelSlug && volumes.byNovel[novelSlug] != null) {
+    if (
+      novelSlug &&
+      volumes.byNovel[novelSlug] !== null &&
+      volumes.byNovel[novelSlug] !== undefined
+    ) {
       return volumes.byNovel[novelSlug];
     }
-    if (volumes.global != null) {
+    if (volumes.global !== null && volumes.global !== undefined) {
       return volumes.global;
     }
     return settings.defaultVolume;
@@ -257,12 +508,18 @@ const NFStorage = (() => {
     PROFILES,
     DEFAULT_SETTINGS,
     DEFAULT_AUTO_SCROLL,
+    DEFAULT_READER,
     getSettings,
     saveSettings,
     getVolumes,
     saveVolumes,
     getNarratorLevels,
     saveNarratorLevel,
+    getReaderState,
+    saveReadingProgress,
+    getReadingProgress,
+    getPlaybackRate,
+    savePlaybackRate,
     getNarratorMultiplier,
     getVolumeForContext,
     saveVolumeForContext,

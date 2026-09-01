@@ -16,7 +16,11 @@
     narrator: null,
     narratorLevels: {},
     narratorMultiplier: 1,
+    contextKey: null,
+    contextRequestId: 0,
     sections: new Set(),
+    sectionObservers: new Map(),
+    audioBySection: new Map(),
     widgets: [],
     floatingWidget: null,
     keepAliveTimer: null,
@@ -68,7 +72,7 @@
   function applyToAudio(percent, fadeOverride) {
     const options = {
       ...audioOptions(),
-      fadeEnabled: fadeOverride != null ? fadeOverride : state.settings.fadeEnabled,
+      fadeEnabled: fadeOverride !== undefined ? fadeOverride : state.settings.fadeEnabled,
     };
 
     state.sections.forEach((section) => {
@@ -76,8 +80,7 @@
       if (!audio) {
         return;
       }
-      const effective = percent * state.narratorMultiplier;
-      NFAudioEngine.apply(audio, effective, options);
+      NFAudioEngine.apply(audio, percent, options).catch(() => {});
     });
   }
 
@@ -86,7 +89,7 @@
       ? Math.round(percent / state.narratorMultiplier)
       : percent;
     await NFStorage.saveVolumeForContext(
-      state.baseVolume,
+      percent,
       state.novelSlug,
       state.narrator,
       state.narratorMultiplier
@@ -132,10 +135,13 @@
 
   function toggleMute() {
     if (state.muted || state.volume === 0) {
-      setVolume(state.volumeBeforeMute || state.settings.defaultVolume, { muteFlag: false });
+      setVolume(state.volumeBeforeMute || state.settings.defaultVolume, {
+        muteFlag: false,
+        save: false,
+      });
     } else {
       state.volumeBeforeMute = state.volume;
-      setVolume(0, { muteFlag: true });
+      setVolume(0, { muteFlag: true, save: false });
     }
   }
 
@@ -293,6 +299,7 @@
   }
 
   function injectInlineControl(section) {
+    state.widgets = state.widgets.filter((widget) => widget.wrapper.isConnected);
     if (section.querySelector("." + CONTROL_CLASS)) {
       return;
     }
@@ -446,7 +453,19 @@
 
   function bindAudioEvents(section) {
     const audio = section.querySelector("audio");
-    if (!audio || audio.dataset.nfBound) {
+    const previousAudio = state.audioBySection.get(section);
+
+    if (previousAudio && previousAudio !== audio) {
+      NFAudioEngine.disconnect(previousAudio).catch(() => {});
+      state.audioBySection.delete(section);
+    }
+
+    if (!audio) {
+      return;
+    }
+
+    state.audioBySection.set(section, audio);
+    if (audio.dataset.nfBound) {
       return;
     }
     audio.dataset.nfBound = "1";
@@ -479,24 +498,34 @@
     });
   }
 
-  async function reloadContextVolume(section) {
+  async function reloadContextVolume(section, { force = false } = {}) {
     const narrator = NFStorage.detectNarrator(section);
-    if (narrator !== state.narrator) {
-      state.narrator = narrator;
-      const ctx = await NFStorage.getVolumeForContext(state.novelSlug, state.narrator);
-      state.settings = ctx.settings;
-      state.narratorLevels = ctx.narratorLevels;
-      state.narratorMultiplier = ctx.narratorMultiplier;
-      state.baseVolume = ctx.baseVolume;
-      await setVolume(ctx.volume, { save: false });
+    const novelSlug = state.novelSlug;
+    const contextKey = `${novelSlug || ""}\u0000${narrator || ""}`;
+    if (!force && contextKey === state.contextKey) {
+      return;
     }
+
+    state.contextKey = contextKey;
+    state.narrator = narrator;
+    const requestId = ++state.contextRequestId;
+    const ctx = await NFStorage.getVolumeForContext(novelSlug, narrator);
+    if (requestId !== state.contextRequestId || novelSlug !== state.novelSlug) {
+      return;
+    }
+
+    state.settings = ctx.settings;
+    state.narratorLevels = ctx.narratorLevels;
+    state.narratorMultiplier = ctx.narratorMultiplier;
+    state.baseVolume = ctx.baseVolume;
+    await setVolume(ctx.volume, { save: false });
   }
 
   function initSection(section) {
     state.sections.add(section);
     injectInlineControl(section);
     bindAudioEvents(section);
-    reloadContextVolume(section);
+    reloadContextVolume(section, { force: true });
     applyToAudio(state.volume, false);
 
     const observer = new MutationObserver(() => {
@@ -507,6 +536,41 @@
       updateFloatingVisibility();
     });
     observer.observe(section, { childList: true, subtree: true, characterData: true });
+    state.sectionObservers.set(section, observer);
+  }
+
+  function cleanupSection(section) {
+    state.sectionObservers.get(section)?.disconnect();
+    state.sectionObservers.delete(section);
+
+    const audio = state.audioBySection.get(section);
+    if (audio) {
+      NFAudioEngine.disconnect(audio).catch(() => {});
+      state.audioBySection.delete(section);
+    }
+
+    state.sections.delete(section);
+    state.widgets = state.widgets.filter((widget) => widget.section !== section);
+  }
+
+  function pruneDetachedSections() {
+    state.sections.forEach((section) => {
+      if (!section.isConnected) {
+        cleanupSection(section);
+      }
+    });
+    state.widgets = state.widgets.filter((widget) => widget.wrapper.isConnected);
+  }
+
+  function refreshRouteContext() {
+    const novelSlug = NFStorage.extractNovelSlug();
+    if (novelSlug === state.novelSlug) {
+      return false;
+    }
+    state.novelSlug = novelSlug;
+    state.narrator = null;
+    state.contextKey = null;
+    return true;
   }
 
   function matchesShortcut(event, shortcut) {
@@ -574,14 +638,16 @@
 
     const interval = state.settings.keepAliveIntervalMs || 1500;
     state.keepAliveTimer = window.setInterval(() => {
-      NFAudioEngine.keepAlive();
+      NFAudioEngine.keepAlive().catch(() => {});
       applyToAudio(state.volume, false);
     }, interval);
+  }
 
-    document.addEventListener("visibilitychange", () => {
-      NFAudioEngine.keepAlive();
+  function handleVisibilityChange() {
+    if (!document.hidden) {
+      NFAudioEngine.keepAlive().catch(() => {});
       applyToAudio(state.volume, false);
-    });
+    }
   }
 
   function initScrollWatcher() {
@@ -629,15 +695,21 @@
   }
 
   async function bootstrap(reload) {
+    refreshRouteContext();
     const ctx = await NFStorage.getVolumeForContext(state.novelSlug, state.narrator);
     state.settings = ctx.settings;
     state.narratorLevels = ctx.narratorLevels;
     state.narratorMultiplier = ctx.narratorMultiplier;
     state.baseVolume = ctx.baseVolume;
 
-    if (!reload) {
+    if (reload && state.muted) {
+      state.volumeBeforeMute = ctx.volume || state.settings.defaultVolume;
+    } else {
       state.volume = ctx.volume;
       state.volumeBeforeMute = ctx.volume || state.settings.defaultVolume;
+      if (!reload) {
+        state.muted = ctx.volume === 0;
+      }
     }
 
     document.querySelectorAll(SECTION_SELECTOR).forEach((section) => {
@@ -664,22 +736,31 @@
     initKeyboardShortcuts();
     initScrollWatcher();
     initMessageBridge();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const pageObserver = new MutationObserver(() => {
-      document.querySelectorAll(SECTION_SELECTOR).forEach((section) => {
+      pruneDetachedSections();
+      const routeChanged = refreshRouteContext();
+      const sections = Array.from(document.querySelectorAll(SECTION_SELECTOR));
+
+      sections.forEach((section) => {
         if (!section.dataset.nfVolumeReady) {
           section.dataset.nfVolumeReady = "1";
           initSection(section);
         }
       });
+
+      if (routeChanged && sections[0]) {
+        reloadContextVolume(sections[0], { force: true });
+      }
     });
     pageObserver.observe(document.body, { childList: true, subtree: true });
 
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== "sync") {
-        return;
-      }
-      if (changes.nf_settings || changes.nf_volumes || changes.nf_narrator_levels) {
+      const settingsChanged = area === "sync" && changes.nf_settings;
+      const localDataChanged =
+        area === "local" && (changes.nf_volumes || changes.nf_narrator_levels);
+      if (settingsChanged || localDataChanged) {
         bootstrap(true);
       }
     });

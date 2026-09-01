@@ -1,32 +1,32 @@
-importScripts("../shared/storage.js");
-
 const CONTENT_SCRIPT_ID = "nf-tools";
+const CONTENT_MATCHES = ["https://novelfrance.fr/*", "https://*.novelfrance.fr/*"];
 
 const SCRIPT_FILES = [
   "shared/storage.js",
   "features/volume/audio-engine.js",
   "features/volume/content.js",
   "features/autoscroll/content.js",
+  "features/reader/content.js",
 ];
 
 const STYLE_FILES = [
   "features/volume/volume.css",
   "features/autoscroll/autoscroll.css",
+  "features/reader/reader.css",
 ];
 
 async function registerContentScripts() {
-  const settings = await NFStorage.getSettings();
-
-  try {
+  const registeredScripts = await chrome.scripting.getRegisteredContentScripts({
+    ids: [CONTENT_SCRIPT_ID],
+  });
+  if (registeredScripts.length) {
     await chrome.scripting.unregisterContentScripts({ ids: [CONTENT_SCRIPT_ID] });
-  } catch (_error) {
-    // Script not registered yet.
   }
 
   await chrome.scripting.registerContentScripts([
     {
       id: CONTENT_SCRIPT_ID,
-      matches: settings.sites,
+      matches: CONTENT_MATCHES,
       js: SCRIPT_FILES,
       css: STYLE_FILES,
       runAt: "document_idle",
@@ -34,42 +34,26 @@ async function registerContentScripts() {
   ]);
 }
 
-async function ensureHostPermissions(sites) {
-  const optional = await chrome.permissions.getAll();
-  const known = new Set(optional.origins || []);
-  const missing = sites.filter((site) => site.includes("*://*/*") && !known.has("*://*/*"));
-
-  if (missing.length) {
-    await chrome.permissions.request({ origins: missing });
-  }
-}
-
 function updateBadge(text, muted) {
   chrome.action.setBadgeText({ text: text || "" });
   chrome.action.setBadgeBackgroundColor({ color: muted ? "#52525b" : "#e11d48" });
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
-  const settings = await NFStorage.getSettings();
-  await ensureHostPermissions(settings.sites);
-  await registerContentScripts();
-  updateBadge("", false);
+chrome.runtime.onInstalled.addListener(() => {
+  registerContentScripts()
+    .then(() => updateBadge("", false))
+    .catch((error) => console.error("NovelFrance Tools: content script registration failed", error));
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  registerContentScripts();
-});
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes.nf_settings) {
-    registerContentScripts();
-  }
+  registerContentScripts().catch((error) =>
+    console.error("NovelFrance Tools: content script registration failed", error)
+  );
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "NF_REREGISTER_SCRIPTS") {
-    registerContentScripts().then(() => sendResponse({ ok: true }));
-    return true;
+  if (!message || typeof message.type !== "string") {
+    return false;
   }
 
   if (message.type === "NF_BADGE_UPDATE" || message.type === "NF_VOLUME_CHANGED") {

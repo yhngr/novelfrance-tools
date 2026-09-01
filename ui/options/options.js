@@ -6,6 +6,12 @@ const fields = {
   autoScrollPauseManual: document.getElementById("autoScrollPauseManual"),
   autoScrollShowPanel: document.getElementById("autoScrollShowPanel"),
   shortcutAutoScroll: document.getElementById("shortcutAutoScroll"),
+  readerShowProgress: document.getElementById("readerShowProgress"),
+  autoNextChapter: document.getElementById("autoNextChapter"),
+  shortcutSeekBackward: document.getElementById("shortcutSeekBackward"),
+  shortcutSeekForward: document.getElementById("shortcutSeekForward"),
+  shortcutRateDown: document.getElementById("shortcutRateDown"),
+  shortcutRateUp: document.getElementById("shortcutRateUp"),
   defaultVolume: document.getElementById("defaultVolume"),
   sliderStep: document.getElementById("sliderStep"),
   boostEnabled: document.getElementById("boostEnabled"),
@@ -27,7 +33,6 @@ const fields = {
   eqBassValue: document.getElementById("eqBassValue"),
   eqMidValue: document.getElementById("eqMidValue"),
   eqTrebleValue: document.getElementById("eqTrebleValue"),
-  sites: document.getElementById("sites"),
 };
 
 const saveBtn = document.getElementById("save-btn");
@@ -72,6 +77,12 @@ async function loadOptions() {
   fields.autoScrollPauseManual.checked = scroll.pauseOnManualScroll;
   fields.autoScrollShowPanel.checked = scroll.showFloatingControl;
   fields.shortcutAutoScroll.value = settings.shortcuts.toggleAutoScroll;
+  fields.readerShowProgress.checked = settings.reader.showProgressBar;
+  fields.autoNextChapter.checked = settings.reader.autoNextChapter;
+  fields.shortcutSeekBackward.value = settings.shortcuts.seekBackward;
+  fields.shortcutSeekForward.value = settings.shortcuts.seekForward;
+  fields.shortcutRateDown.value = settings.shortcuts.rateDown;
+  fields.shortcutRateUp.value = settings.shortcuts.rateUp;
 
   fields.defaultVolume.value = settings.defaultVolume;
   fields.sliderStep.value = settings.sliderStep;
@@ -97,15 +108,9 @@ async function loadOptions() {
   setRangeFill(fields.eqBass, settings.equalizer.bass, -12, 12);
   setRangeFill(fields.eqMid, settings.equalizer.mid, -12, 12);
   setRangeFill(fields.eqTreble, settings.equalizer.treble, -12, 12);
-  fields.sites.value = settings.sites.join("\n");
 }
 
 async function saveOptions() {
-  const sites = fields.sites.value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
   const current = await NFStorage.getSettings();
 
   const settings = {
@@ -131,6 +136,10 @@ async function saveOptions() {
       volumeUp: fields.shortcutUp.value.trim() || "ArrowUp",
       volumeDown: fields.shortcutDown.value.trim() || "ArrowDown",
       toggleAutoScroll: fields.shortcutAutoScroll.value.trim() || "s",
+      seekBackward: fields.shortcutSeekBackward.value.trim() || "j",
+      seekForward: fields.shortcutSeekForward.value.trim() || "l",
+      rateDown: fields.shortcutRateDown.value.trim() || "[",
+      rateUp: fields.shortcutRateUp.value.trim() || "]",
     },
     autoScroll: {
       enabled: fields.autoScrollEnabled.checked,
@@ -139,20 +148,15 @@ async function saveOptions() {
       pauseOnManualScroll: fields.autoScrollPauseManual.checked,
       showFloatingControl: fields.autoScrollShowPanel.checked,
     },
-    sites: sites.length ? sites : NFStorage.DEFAULT_SETTINGS.sites,
+    reader: {
+      showProgressBar: fields.readerShowProgress.checked,
+      autoNextChapter: fields.autoNextChapter.checked,
+    },
     floatingPosition: current.floatingPosition,
     autoScrollPosition: current.autoScrollPosition,
   };
 
   await NFStorage.saveSettings(settings);
-
-  const defaults = new Set(NFStorage.DEFAULT_SETTINGS.sites);
-  const added = settings.sites.filter((site) => !defaults.has(site));
-  if (added.length) {
-    await chrome.permissions.request({ origins: added });
-  }
-
-  await chrome.runtime.sendMessage({ type: "NF_REREGISTER_SCRIPTS" });
 
   const tabs = await chrome.tabs.query({});
   tabs.forEach((tab) => {

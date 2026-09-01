@@ -18,6 +18,16 @@ const scrollToggle = document.getElementById("scroll-toggle");
 const scrollSpeed = document.getElementById("scroll-speed");
 const scrollSpeedValue = document.getElementById("scroll-speed-value");
 const scrollStatus = document.getElementById("scroll-status");
+const readingPercent = document.getElementById("reading-percent");
+const readingProgressFill = document.getElementById("reading-progress-fill");
+const readingRemaining = document.getElementById("reading-remaining");
+const audioRemaining = document.getElementById("audio-remaining");
+const resumeReadingBtn = document.getElementById("resume-reading");
+const seekBackwardBtn = document.getElementById("seek-backward");
+const seekForwardBtn = document.getElementById("seek-forward");
+const playbackRate = document.getElementById("playback-rate");
+const playbackRateValue = document.getElementById("playback-rate-value");
+const autoNextToggle = document.getElementById("auto-next-toggle");
 
 let currentVolume = 100;
 let currentMax = 100;
@@ -27,13 +37,13 @@ optionsLink.addEventListener("click", (event) => {
   chrome.runtime.openOptionsPage();
 });
 
-function setRangeFill(input, value, max) {
-  const fill = max > 0 ? (value / max) * 100 : 0;
+function setRangeFill(input, value, max, min = 0) {
+  const fill = max > min ? ((value - min) / (max - min)) * 100 : 0;
   input.style.setProperty("--fill", fill + "%");
 }
 
 function renderPresets(max) {
-  presetsEl.innerHTML = "";
+  presetsEl.replaceChildren();
   PRESETS.forEach((preset) => {
     if (preset > max) {
       return;
@@ -48,7 +58,7 @@ function renderPresets(max) {
 }
 
 function renderProfiles() {
-  profilesEl.innerHTML = "";
+  profilesEl.replaceChildren();
   Object.entries(NFStorage.PROFILES).forEach(([key, profile]) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -60,7 +70,7 @@ function renderProfiles() {
 
 function renderShortcuts(settings) {
   if (!settings?.shortcuts) {
-    shortcutHint.innerHTML = "";
+    shortcutHint.replaceChildren();
     return;
   }
   const s = settings.shortcuts;
@@ -70,8 +80,15 @@ function renderShortcuts(settings) {
     s.volumeUp.replace("ArrowUp", "↑").replace("ArrowDown", "↓") +
       "/" +
       s.volumeDown.replace("ArrowUp", "↑").replace("ArrowDown", "↓"),
+    s.seekBackward + "/" + s.seekForward,
+    s.rateDown + "/" + s.rateUp,
   ];
-  shortcutHint.innerHTML = items.map((key) => `<kbd>${key}</kbd>`).join("");
+  shortcutHint.replaceChildren();
+  items.forEach((key) => {
+    const keyElement = document.createElement("kbd");
+    keyElement.textContent = key;
+    shortcutHint.appendChild(keyElement);
+  });
 }
 
 async function getActiveTab() {
@@ -123,7 +140,7 @@ function updateScrollUi(scrollState, settings) {
 
   scrollSpeed.value = String(speed);
   scrollSpeedValue.textContent = speed + " px/s";
-  setRangeFill(scrollSpeed, speed - 10, 160);
+  setRangeFill(scrollSpeed, speed, 160, 10);
 
   if (paused) {
     scrollToggle.textContent = "Reprendre le défilement";
@@ -148,13 +165,61 @@ function updateScrollUi(scrollState, settings) {
   }
 }
 
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "--:--";
+  }
+  const total = Math.ceil(seconds);
+  const minutes = Math.floor(total / 60);
+  const remainder = total % 60;
+  return minutes + ":" + String(remainder).padStart(2, "0");
+}
+
+function updateReaderUi(readerState) {
+  const available = Boolean(readerState?.isChapter);
+  const progress = available ? readerState.progress || 0 : 0;
+  const rate = readerState?.playbackRate || 1;
+
+  readingPercent.textContent = Math.round(progress) + " %";
+  readingProgressFill.style.width = progress + "%";
+  playbackRate.value = String(rate);
+  playbackRateValue.textContent = rate + "×";
+  setRangeFill(playbackRate, rate, 2, 0.75);
+
+  if (!available) {
+    readingRemaining.textContent = "Ouvrez un chapitre";
+  } else if (readerState.readingMinutesRemaining === null) {
+    readingRemaining.textContent = "Estimation indisponible";
+  } else if (readerState.readingMinutesRemaining === 0) {
+    readingRemaining.textContent = "Fin du chapitre";
+  } else {
+    readingRemaining.textContent = `~${readerState.readingMinutesRemaining} min restantes`;
+  }
+
+  audioRemaining.textContent = readerState?.audioRemainingSeconds === null ||
+    readerState?.audioRemainingSeconds === undefined
+    ? "Audio indisponible"
+    : "Audio " + formatDuration(readerState.audioRemainingSeconds);
+
+  resumeReadingBtn.hidden = !readerState?.canResume;
+  if (readerState?.canResume) {
+    resumeReadingBtn.textContent = `Revenir à ${readerState.resumePercent} %`;
+  }
+  seekBackwardBtn.disabled = !readerState?.hasAudio;
+  seekForwardBtn.disabled = !readerState?.hasAudio;
+  playbackRate.disabled = !available;
+  autoNextToggle.checked = Boolean(readerState?.autoNextChapter);
+  autoNextToggle.disabled = !available;
+}
+
 async function loadState() {
   const settings = await NFStorage.getSettings();
   renderProfiles();
 
-  const [volumeState, scrollState] = await Promise.all([
+  const [volumeState, scrollState, readerState] = await Promise.all([
     sendToTab({ type: "NF_GET_STATE" }),
     sendToTab({ type: "NF_GET_AUTOSCROLL_STATE" }),
+    sendToTab({ type: "NF_GET_READER_STATE" }),
   ]);
 
   if (volumeState) {
@@ -174,7 +239,15 @@ async function loadState() {
   }
 
   updateScrollUi(scrollState, settings);
+  updateReaderUi(readerState);
   renderShortcuts(settings);
+}
+
+async function refreshReaderState() {
+  const readerState = await sendToTab({ type: "NF_GET_READER_STATE" });
+  if (readerState) {
+    updateReaderUi(readerState);
+  }
 }
 
 slider.addEventListener("input", () => {
@@ -197,8 +270,32 @@ scrollToggle.addEventListener("click", () => {
 scrollSpeed.addEventListener("input", () => {
   const speed = Number(scrollSpeed.value);
   scrollSpeedValue.textContent = speed + " px/s";
-  setRangeFill(scrollSpeed, speed - 10, 160);
+  setRangeFill(scrollSpeed, speed, 160, 10);
   sendToTab({ type: "NF_SET_AUTOSCROLL_SPEED", speed });
 });
 
+resumeReadingBtn.addEventListener("click", () => {
+  sendToTab({ type: "NF_RESUME_READING" }).then(refreshReaderState);
+});
+
+seekBackwardBtn.addEventListener("click", () => {
+  sendToTab({ type: "NF_SEEK_AUDIO", seconds: -10 }).then(refreshReaderState);
+});
+
+seekForwardBtn.addEventListener("click", () => {
+  sendToTab({ type: "NF_SEEK_AUDIO", seconds: 10 }).then(refreshReaderState);
+});
+
+playbackRate.addEventListener("input", () => {
+  const rate = Number(playbackRate.value);
+  playbackRateValue.textContent = rate + "×";
+  setRangeFill(playbackRate, rate, 2, 0.75);
+  sendToTab({ type: "NF_SET_PLAYBACK_RATE", rate });
+});
+
+autoNextToggle.addEventListener("change", () => {
+  sendToTab({ type: "NF_SET_AUTO_NEXT", enabled: autoNextToggle.checked }).then(refreshReaderState);
+});
+
 loadState();
+window.setInterval(refreshReaderState, 1000);

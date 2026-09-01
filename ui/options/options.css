@@ -152,6 +152,10 @@ h1 {
   gap: 8px;
 }
 
+.shortcut-grid--reader {
+  grid-template-columns: 1fr 1fr;
+}
+
 .input-unit {
   display: flex;
   align-items: center;
@@ -162,8 +166,7 @@ h1 {
 
 .input-unit input,
 .field-inline input[type="number"],
-.input-short,
-textarea {
+.input-short {
   background: var(--input-bg);
   border: 1px solid var(--card-border);
   color: var(--text);
@@ -187,19 +190,9 @@ textarea {
 }
 
 .field-inline input[type="number"]:focus,
-.input-short:focus,
-textarea:focus {
+.input-short:focus {
   outline: none;
   border-color: rgba(225, 29, 72, 0.5);
-}
-
-textarea {
-  width: 100%;
-  resize: vertical;
-  min-height: 88px;
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .toggle {

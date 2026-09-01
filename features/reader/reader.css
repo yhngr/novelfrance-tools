@@ -1,0 +1,68 @@
+#nf-reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483646;
+  height: 3px;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nf-reading-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  background: #e11d48;
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.55);
+  transition: width 0.12s linear;
+}
+
+#nf-reading-resume {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2147483645;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(18, 18, 24, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  transform: translateX(-50%);
+}
+
+.nf-reading-resume-button,
+.nf-reading-resume-close {
+  border: 0;
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+  cursor: pointer;
+}
+
+.nf-reading-resume-button {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font: 600 11px/1.2 system-ui, -apple-system, sans-serif;
+}
+
+.nf-reading-resume-button:hover {
+  background: rgba(225, 29, 72, 0.18);
+}
+
+.nf-reading-resume-close {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  font: 18px/22px system-ui, -apple-system, sans-serif;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nf-reading-resume-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}

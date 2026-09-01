@@ -18,6 +18,42 @@
         </div>
       </header>
 
+      <section class="card" aria-labelledby="reader-title">
+        <div class="card-head">
+          <h2 id="reader-title">Lecture</h2>
+          <output id="reading-percent" class="badge badge-accent">0 %</output>
+        </div>
+
+        <div class="reader-progress" aria-hidden="true">
+          <span id="reading-progress-fill"></span>
+        </div>
+        <div class="reader-metrics">
+          <span id="reading-remaining">Temps de lecture indisponible</span>
+          <span id="audio-remaining">Audio indisponible</span>
+        </div>
+
+        <button id="resume-reading" type="button" class="btn btn-secondary" hidden>
+          Revenir à la dernière position
+        </button>
+
+        <div class="reader-seek-row">
+          <button id="seek-backward" type="button" class="small-btn" aria-label="Reculer de 10 secondes">−10 s</button>
+          <label class="field reader-rate">
+            <div class="field-top">
+              <span>Vitesse TTS</span>
+              <output id="playback-rate-value" for="playback-rate">1×</output>
+            </div>
+            <input id="playback-rate" class="range" type="range" min="0.75" max="2" step="0.25" />
+          </label>
+          <button id="seek-forward" type="button" class="small-btn" aria-label="Avancer de 10 secondes">+10 s</button>
+        </div>
+
+        <label class="reader-toggle">
+          <input id="auto-next-toggle" type="checkbox" />
+          <span>Chapitre suivant automatique</span>
+        </label>
+      </section>
+
       <section class="card" aria-labelledby="scroll-title">
         <div class="card-head">
           <h2 id="scroll-title">Auto-scroll</h2>
